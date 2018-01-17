@@ -50,6 +50,8 @@ import de.danoeh.antennapod.core.service.playback.PlaybackService;
 import de.danoeh.antennapod.core.storage.DBReader;
 import de.danoeh.antennapod.core.storage.DBTasks;
 import de.danoeh.antennapod.core.storage.DBWriter;
+import de.danoeh.antennapod.core.storage.DownloadRequestException;
+import de.danoeh.antennapod.core.storage.DownloadRequester;
 import de.danoeh.antennapod.core.util.FeedItemUtil;
 import de.danoeh.antennapod.core.util.Flavors;
 import de.danoeh.antennapod.core.util.StorageUtils;
@@ -228,6 +230,25 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
 
             // for backward compatibility, we only change defaults for fresh installs
             UserPreferences.setUpdateInterval(12);
+
+            String[] feeds = new String[]{
+                    "https://www.ranlevi.com/feed/podcast/",
+                    "https://www.ranlevi.com/feed/osimpolitica/",
+                    "https://www.ranlevi.com/feed/osim_refua/",
+                    "https://www.ranlevi.com/feed/bizpod/",
+                    "https://www.ranlevi.com/feed/osim_shivuk/",
+                    "https://www.ranlevi.com/feed/osim_tech/"
+            };
+
+            for (String feedURL : feeds) {
+                Feed feed = new Feed(feedURL, null);
+                try {
+                    DownloadRequester.getInstance().downloadFeed(this, feed);
+                } catch (DownloadRequestException e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "Failed to load feed " + feed, e);
+                }
+            }
 
             SharedPreferences.Editor edit = prefs.edit();
             edit.putBoolean(PREF_IS_FIRST_LAUNCH, false);

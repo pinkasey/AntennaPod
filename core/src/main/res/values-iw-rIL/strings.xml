@@ -97,7 +97,7 @@
   <string name="play_label">נגן</string>
   <string name="pause_label">השהה</string>
   <string name="stop_label">עצור</string>
-  <string name="stream_label">הזרם</string>
+  <string name="stream_label">נגן</string>
   <string name="remove_label">הסר</string>
   <string name="remove_episode_lable">הסר פרק</string>
   <string name="mark_read_label">סמן כנקרא</string>
