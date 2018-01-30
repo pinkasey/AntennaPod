@@ -218,7 +218,7 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
 
     private String getLastNavFragment() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        String lastFragment = prefs.getString(PREF_LAST_FRAGMENT_TAG, QueueFragment.TAG);
+        String lastFragment = prefs.getString(PREF_LAST_FRAGMENT_TAG, SubscriptionFragment.TAG);
         Log.d(TAG, "getLastNavFragment() -> " + lastFragment);
         return lastFragment;
     }
@@ -226,18 +226,21 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
     private void checkFirstLaunch() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         if (prefs.getBoolean(PREF_IS_FIRST_LAUNCH, true)) {
-            new Handler().postDelayed(() -> drawerLayout.openDrawer(navDrawer), 1500);
+            //new Handler().postDelayed(() -> drawerLayout.openDrawer(navDrawer), 1500);
 
             // for backward compatibility, we only change defaults for fresh installs
             UserPreferences.setUpdateInterval(12);
 
             String[] feeds = new String[]{
                     "https://www.ranlevi.com/feed/podcast/",
+                    "https://www.ranlevi.com/feed/osim_tech/",
                     "https://www.ranlevi.com/feed/osimpolitica/",
                     "https://www.ranlevi.com/feed/osim_refua/",
                     "https://www.ranlevi.com/feed/bizpod/",
                     "https://www.ranlevi.com/feed/osim_shivuk/",
-                    "https://www.ranlevi.com/feed/osim_tech/"
+                    "https://www.ranlevi.com/feed/osimtanach",
+                    "https://www.ranlevi.com/feed/sportpod_podcast/",
+                    "https://malicious.life/feed/podcast/"
             };
 
             for (String feedURL : feeds) {
