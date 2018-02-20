@@ -33,7 +33,10 @@ import com.bumptech.glide.Glide;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.Validate;
 
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.adapter.NavListAdapter;
@@ -77,6 +80,18 @@ import rx.schedulers.Schedulers;
  */
 public class MainActivity extends CastEnabledActivity implements NavDrawerActivity {
 
+    public static final String[] PRELOADED_FEEDS = new String[]{
+            "https://www.ranlevi.com/feed/podcast/",
+            "https://www.ranlevi.com/feed/osim_tech/",
+            "https://www.ranlevi.com/feed/osimpolitica/",
+            "https://www.ranlevi.com/feed/osim_refua/",
+            "https://www.ranlevi.com/feed/bizpod/",
+            "https://www.ranlevi.com/feed/osim_shivuk/",
+            "https://www.ranlevi.com/feed/osimtanach",
+            "https://www.ranlevi.com/feed/sportpod_podcast/",
+            "https://malicious.life/feed/podcast/"
+    };
+
     private static final String TAG = "MainActivity";
 
     private static final int EVENTS = EventDistributor.FEED_LIST_UPDATE
@@ -84,6 +99,7 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
 
     public static final String PREF_NAME = "MainActivityPrefs";
     public static final String PREF_IS_FIRST_LAUNCH = "prefMainActivityIsFirstLaunch";
+    public static final String PREF_PRELOADED_FEED_DOWNLOADED = "prefMainActivityIsFirstLaunch";
     public static final String PREF_LAST_FRAGMENT_TAG = "prefMainActivityLastFragmentTag";
 
     public static final String EXTRA_NAV_TYPE = "nav_type";
@@ -202,6 +218,7 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
         transaction.commit();
 
         checkFirstLaunch();
+        checkPreLoadedFeeds();
     }
 
     private void saveLastNavFragment(String tag) {
@@ -223,6 +240,74 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
         return lastFragment;
     }
 
+    /**
+     * Checks if all the preloaded feeds (PRELOADED_FEEDS) were downloaded at some point.
+     * Those that were not will be added at this point.
+     *
+     * <h3>Fresh Install case</h3>
+     * <ol>
+     *     <li>user installed app</li>
+     *     <li>on first run, this method subscribes to all feeds in PRELOADED_FEEDS</li>
+     *     <li>on subsequent runs, this methods checks and sees that all feeds have been subscribed to at some point - does nothing</li>
+     * </ol>
+     *
+     * <h3>Upgrade case</h3>
+     * <ol>
+     *     <li>user installed app</li>
+     *     <li>on first run, this method subscribes to all feeds in PRELOADED_FEEDS</li>
+     *     <li>app upgrades, on new version PRELOADED_FEEDS contains another 2 feeds</li>
+     *     <li>this method detects the 2 missing feeds and subscribed to them</li>
+     * </ol>
+     *
+     * <h3>Corner case - do not subscribe again to unsubscribed feeds</h3>
+     * <ol>
+     *     <li>user installed app</li>
+     *     <li>user removed feed that he is not interested in</li>
+     *     <li>this method WILL NOT add it back</li>
+     * </ol>
+     */
+    private void checkPreLoadedFeeds(){
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        Set<String> loadedFeeds = prefs.getStringSet(PREF_PRELOADED_FEED_DOWNLOADED, new HashSet<>());
+
+        //find pre-loaded feeds that haven't loaded yet - i use a list to preserve order
+        List<String> notLoadedYet = new LinkedList<>();
+        for ( String feed : PRELOADED_FEEDS ){
+            if (!loadedFeeds.contains( feed )){
+                notLoadedYet.add( feed );
+            }
+        }
+
+        if ( !notLoadedYet.isEmpty() ) {
+            SharedPreferences.Editor edit = prefs.edit();
+
+            Log.e(TAG, "Loading " + notLoadedYet.size() + "preloaded-feeds that were not loaded yet: " + notLoadedYet);
+
+            for (String feedURL : notLoadedYet) {
+                try {
+                    //TODO: check what happens to feeds that were already being downloaded at this point
+                    // this will happen - users that had the app before this commit will have an empty set for PREF_PRELOADED_FEED_DOWNLOADED,
+                    // even though they have most feeds already downloading.
+                    // If this case poses a problem, we may want to use this to check if feed is already downloading:
+                    //DownloadRequester.getInstance().isDownloadingFile(feedURL);
+
+                    DownloadRequester.getInstance().downloadFeed(this, new Feed(feedURL, null) );
+                    loadedFeeds.add( feedURL );
+                } catch (DownloadRequestException e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "Failed to load feed " + feedURL, e);
+                }
+            }
+
+            edit.putStringSet(PREF_PRELOADED_FEED_DOWNLOADED, loadedFeeds);
+            edit.apply();
+
+            Log.e(TAG, "Done loading preloaded-feeds. PREF_PRELOADED_FEED_DOWNLOADED now contains " + loadedFeeds.size() + " feeds: " + loadedFeeds);
+        }
+
+
+    }
+
     private void checkFirstLaunch() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         if (prefs.getBoolean(PREF_IS_FIRST_LAUNCH, true)) {
@@ -231,27 +316,6 @@ public class MainActivity extends CastEnabledActivity implements NavDrawerActivi
             // for backward compatibility, we only change defaults for fresh installs
             UserPreferences.setUpdateInterval(12);
 
-            String[] feeds = new String[]{
-                    "https://www.ranlevi.com/feed/podcast/",
-                    "https://www.ranlevi.com/feed/osim_tech/",
-                    "https://www.ranlevi.com/feed/osimpolitica/",
-                    "https://www.ranlevi.com/feed/osim_refua/",
-                    "https://www.ranlevi.com/feed/bizpod/",
-                    "https://www.ranlevi.com/feed/osim_shivuk/",
-                    "https://www.ranlevi.com/feed/osimtanach",
-                    "https://www.ranlevi.com/feed/sportpod_podcast/",
-                    "https://malicious.life/feed/podcast/"
-            };
-
-            for (String feedURL : feeds) {
-                Feed feed = new Feed(feedURL, null);
-                try {
-                    DownloadRequester.getInstance().downloadFeed(this, feed);
-                } catch (DownloadRequestException e) {
-                    e.printStackTrace();
-                    Log.e(TAG, "Failed to load feed " + feed, e);
-                }
-            }
 
             SharedPreferences.Editor edit = prefs.edit();
             edit.putBoolean(PREF_IS_FIRST_LAUNCH, false);
